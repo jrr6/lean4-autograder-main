@@ -54,16 +54,16 @@ def axiomHasCorrectType (ax : Name) (sheet submission : Environment) : Bool :=
     | (some sheetConst, some subConst) => sheetConst.type == subConst.type
     | _                                => false
 
-def findInvalidAxiom (submissionAxioms : List Name)
+def findInvalidAxiom (usedAxioms sheetAxioms : Array Name)
                      (sheet submission : Environment) : Option Name := do
-  for ax in submissionAxioms do
+  for ax in usedAxioms do
     let isBaseAxiom := validAxioms.contains ax
-    let isTaggedAxiom := legalAxiomAttr.hasTag sheet ax
+    let isSheetAxiom := sheetAxioms.contains ax
     let isTypeCorrect := axiomHasCorrectType ax sheet submission
         
     -- If the axiom is not one of our predefined acceptable axioms, and is
-    -- also not tagged in the stencil as legal, then it's invalid
-    if ! (isBaseAxiom || isTaggedAxiom) || ! isTypeCorrect then
+    -- also not declared in the sheet, then it's invalid
+    if ! (isBaseAxiom || isSheetAxiom) || ! isTypeCorrect then
       return ax
   none
 
@@ -92,6 +92,10 @@ def gradeSubmission (sheetName : Name) (sheet submission : Environment)
                     s!"Sheet module with name {sheetName} not found"
   let mut results := #[]
 
+  let sheetAxioms := sheetMod.constants
+    |> Array.filter (λ | .axiomInfo _ => true | _ => false)
+    |> Array.map (λ cstInfo => cstInfo.name)
+
   for name in sheetMod.constNames, constInfo in sheetMod.constants do
     -- Only consider annotated, non-internal declarations
     if let some pts := problemAttr.getParam? sheet name then
@@ -113,8 +117,9 @@ def gradeSubmission (sheetName : Name) (sheet submission : Environment)
             else
               let (_, submissionState) :=
                 ((CollectAxioms.collect name).run submission).run {}
+              let usedAxioms := submissionState.axioms
               if let some badAx :=
-                findInvalidAxiom submissionState.axioms.toList sheet submission
+                findInvalidAxiom usedAxioms sheetAxioms sheet submission
                 then pure { name,
                             status := "failed",
                             output := s!"Uses unexpected axiom {badAx}",
