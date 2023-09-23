@@ -29,7 +29,3 @@ initialize problemAttr : ParametricAttribute Float ←
       | _  => throwError "Invalid problem attribute"
     afterSet := λ _ _ => do pure ()
   }
-
-initialize legalAxiomAttr : TagAttribute ←
-  registerTagAttribute `legalAxiom
-    "Marks an axiom as acceptable for use in autograded solutions"
